@@ -23,12 +23,13 @@ var Ω = (function () {
 		if (typeof from === "undefined") {
 			throw new Error("You must call Ω with an argument.");
 		}
+		let element;
 		if (from instanceof Ω) {
 			return from;
 		} if (from instanceof HTMLElement) {
-			this.element = from;
+			this.element = element = from;
 		} else if (from instanceof Node) {
-			this.element = from;
+			this.element = element = from;
 		} else if (typeof from === "string" || from instanceof String) {
 			var selector = from;
 			var id = selector.match(/#[a-z0-9-]+/);
@@ -39,7 +40,7 @@ var Ω = (function () {
 			selector = selector.replace(/:[a-z-]+/g, "");
 			var attributes = selector.match(/\[[a-z]+(?:="[a-z0-9]+")?\]/g);
 			selector = selector.replace(/\[[a-z]+(?:="[a-z0-9]+")?\]/g, "");
-			this.element = document.createElement(selector);
+			this.element = element = document.createElement(selector);
 			if (id) {
 				this.element.id = id;
 			}
@@ -168,6 +169,33 @@ var Ω = (function () {
 		this.onClick = callback => this.listenFor("click", event => callback(event));
 		this.click = () => this.trigger("click");
 		this.rect = () => this.element.getBoundingClientRect();
+		Object.defineProperty(this, "rect", {
+			get () {
+				return element.getBoundingClientRect();
+			}
+		});
+		Object.defineProperty(this, "scroll", {
+			value: {
+				get left () {
+					return element.scrollLeft
+				},
+				set left (value) {
+					element.scrollLeft = value;
+				},
+				get top () {
+					return element.scrollTop
+				},
+				set top (value) {
+					element.scrollTop = value;
+				},
+				get width () {
+					return element.scrollWidth
+				},
+				get height () {
+					return element.scrollHeight
+				}
+			}
+		});
 
 		// Specific Methods
 		if (this.element instanceof HTMLTableElement) {
