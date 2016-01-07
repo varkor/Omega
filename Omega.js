@@ -236,16 +236,21 @@ var Ω = (function () {
 			};
 		}
 		if (this.element instanceof HTMLInputElement || this.element instanceof HTMLTextAreaElement || this.element instanceof HTMLSelectElement) {
-			this.value = () => {
-				return this.element.value;
-			};
+			Object.defineProperty(this, "value", {
+				get () {
+					return element.value;
+				},
+				set (value) {
+					element.value = value;
+				}
+			});
 			this.withValue = this.setValue = value => {
 				this.element.value = value;
 				return this;
 			};
 		}
 		if (this.element instanceof HTMLInputElement || this.element instanceof HTMLTextAreaElement) {
-			this.onInput = callback => this.listenFor("input", event => callback(this.value()));
+			this.onInput = callback => this.listenFor("input", event => callback(this.value));
 			this.onChange = callback => this.listenFor("change", event => callback());
 			this.focus = () => {
 				this.element.focus();
