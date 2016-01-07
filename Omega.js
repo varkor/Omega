@@ -138,8 +138,8 @@ var Ω = (function () {
 		this.hasClass = name => {
 			return this.element.classList.contains(name);
 		};
-		this.removeClass = name => {
-			this.element.classList.remove(name);
+		this.removeClass = (...names) => {
+			names.forEach(name => this.element.classList.remove(name));
 			return this;
 		};
 		this.addClass = name => {
@@ -249,6 +249,16 @@ var Ω = (function () {
 				return this;
 			};
 		}
+		if (this.element instanceof HTMLInputElement || this.element instanceof HTMLTextAreaElement || this.element instanceof HTMLSelectElement || this.element instanceof HTMLButtonElement) {
+			this.enable = () => {
+				this.element.disabled = false;
+				return this;
+			}
+			this.disable = () => {
+				this.element.disabled = true;
+				return this;
+			}
+		}
 		if (this.element instanceof HTMLInputElement || this.element instanceof HTMLTextAreaElement) {
 			this.onInput = callback => this.listenFor("input", event => callback(this.value));
 			this.onChange = callback => this.listenFor("change", event => callback());
@@ -260,6 +270,15 @@ var Ω = (function () {
 			this.withSelection = this.setSelection = (start, end) => {
 				this.element.setSelectionRange(start, end);
 				return this;
+			};
+			this.withCursorAt = this.placeCursorAt = position => {
+				return this.withSelection(position, position);
+			};
+			this.withCursorAtBeginning = this.placeCursorAtBeginning = () => {
+				return this.withCursorAt(0);
+			};
+			this.withCursorAtEnd = this.placeCursorAtEnd = () => {
+				return this.withCursorAt(this.value.length);
 			};
 		};
 		if (this.element instanceof HTMLInputElement && ["checkbox", "radio"].indexOf(this.element.type) !== -1) {
