@@ -30,14 +30,14 @@ var Ω = (function () {
 			this.element = element = from;
 		} else if (typeof from === "string" || from instanceof String) {
 			var selector = from;
-			var id = selector.match(/#[a-z0-9-]+/);
-			selector = selector.replace(/#[a-z0-9-]+/, "");
-			var classes = selector.match(/\.[a-z0-9-]+/g);
-			selector = selector.replace(/\.[a-z0-9-]+/g, "");
+			var id = selector.match(/#[a-z0-9-]+/i);
+			selector = selector.replace(/#[a-z0-9-]+/i, "");
+			var classes = selector.match(/\.[a-z0-9-]+/gi);
+			selector = selector.replace(/\.[a-z0-9-]+/gi, "");
 			var pseudoClasses = selector.match(/:[a-z-]+/g);
 			selector = selector.replace(/:[a-z-]+/g, "");
-			var attributes = selector.match(/\[[a-z]+(?:="[a-z0-9]+")?\]/g);
-			selector = selector.replace(/\[[a-z]+(?:="[a-z0-9]+")?\]/g, "");
+			var attributes = selector.match(/\[[a-z]+(?:="[a-z0-9]+")?\]/gi);
+			selector = selector.replace(/\[[a-z]+(?:="[a-z0-9]+")?\]/gi, "");
 			this.element = element = document.createElement(selector);
 			if (id) {
 				this.element.id = id[0].slice(1);
