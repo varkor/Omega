@@ -1,8 +1,6 @@
 var Ω = (function () {
 	"use strict";
 
-	// Selectors not currently supported: classes or IDs
-
 	var Ω = function (from) {
 		// Ω(null) = null
 		if (from === null) {
@@ -42,7 +40,7 @@ var Ω = (function () {
 			selector = selector.replace(/\[[a-z]+(?:="[a-z0-9]+")?\]/g, "");
 			this.element = element = document.createElement(selector);
 			if (id) {
-				this.element.id = id;
+				this.element.id = id[0].slice(1);
 			}
 			if (classes) {
 				classes.map(styleClass => styleClass.slice(1)).forEach(styleClass => {
@@ -90,6 +88,27 @@ var Ω = (function () {
 		}
 
 		// General Methods
+		Object.defineProperty(this, "parentElement", {
+			get () {
+				return Ω(this.element.parentElement);
+			}
+		});
+		Object.defineProperty(this, "previousSibling", {
+			get () {
+				return Ω(this.element.previousSibling);
+			}
+		});
+		Object.defineProperty(this, "nextSibling", {
+			get () {
+				return Ω(this.element.nextSibling);
+			}
+		});
+		Object.defineProperty(this, "childNodes", {
+			get () {
+				return Ω(this.element.childNodes);
+			}
+		});
+		this.isText = this.element.nodeType === 3;
 		this.setAttribute = (attribute, value) => {
 			this.element.setAttribute(attribute, value);
 			return this;
@@ -113,26 +132,61 @@ var Ω = (function () {
 			Ω(object).append(this);
 			return this;
 		};
+		this.insertBefore = (object, before) => {
+			if (object !== null) {
+				this.element.insertBefore(Ω(object).element, before !== null ? Ω(before).element : null);
+			}
+			return this;
+		};
+		this.insert = object => {
+			return this.insertBefore(object, this.element.firstChild);
+		};
+		this.insertedInto = object => {
+			object.insert(this);
+			return this;
+		};
+		this.insertedBefore = before => {
+			before.parentElement.insertBefore(this, before);
+			return this;
+		};
 		this.follow = object => {
 			if (object !== null) {
 				this.element.parentNode.insertBefore(object.element, this.element.nextSibling);
 			}
 			return this;
 		}
+		this.following = object => {
+			Ω(object).follow(this);
+			return this;
+		};
 		this.withText = this.addText = text => {
 			if (`${text}`.length > 0) {
-				this.element.appendChild(document.createTextNode(text));
+				if (!this.isText) {
+					this.element.appendChild(document.createTextNode(text));
+				} else {
+					this.element.nodeValue += `${text}`;
+				}
 			}
 			return this;
 		};
-		this.withStyle = this.addStyle = style => {
+		this.replaceText = text => {
+			return this.clear().withText(text);
+		};
+		this.withStyle = this.addStyle = this.setStyle = style => {
 			for (let attribute in style) {
+				if (["left", "top", "right", "bottom", "width", "height"].indexOf(attribute) !== -1 && typeof style[attribute] === "number") {
+					style[attribute] += "px";
+				}
 				this.element.style[attribute] = style[attribute];
 			}
 			return this;
 		};
 		this.clear = () => {
-			this.element.innerHTML = "";
+			if (!this.isText) {
+				this.element.innerHTML = "";
+			} else {
+				this.element.nodeValue = "";
+			}
 			return this;
 		};
 		this.hasClass = name => {
@@ -163,15 +217,35 @@ var Ω = (function () {
 			return this;
 		};
 		this.trigger = type => {
-			this.element.dispatchEvent(new Event(type));
+			if (type instanceof Event) {
+				this.element.dispatchEvent(type);
+			} else {
+				this.element.dispatchEvent(new Event(type));
+			}
 			return this;
 		};
-		this.onClick = callback => this.listenFor("click", event => callback(event));
+		this.onClick = callback => this.listenFor("click", event => callback(event, this));
+		this.onMouseDown = callback => this.listenFor("mousedown", event => {
+			if (event.button === 0) {
+				callback(event, this);
+			}
+		});
 		this.click = () => this.trigger("click");
-		this.rect = () => this.element.getBoundingClientRect();
 		Object.defineProperty(this, "rect", {
 			get () {
 				return element.getBoundingClientRect();
+			}
+		});
+		Object.defineProperty(this, "offsetRect", {
+			get () {
+				return {
+					left: this.element.offsetLeft,
+					top: this.element.offsetTop,
+					right: this.element.offsetRight,
+					bottom: this.element.offsetBottom,
+					width: this.element.offsetWidth,
+					height: this.element.offsetHeight,
+				}
 			}
 		});
 		Object.defineProperty(this, "scroll", {
@@ -198,6 +272,16 @@ var Ω = (function () {
 		});
 
 		// Specific Methods
+		if (this.isText) {
+			Object.defineProperty(this, "value", {
+				get () {
+					return element.nodeValue;
+				},
+				set (value) {
+					element.nodeValue = `${value}`;
+				}
+			});
+		}
 		if (this.element instanceof HTMLTableElement) {
 			this.row = index => {
 				return Ω(this.element.rows[index >= 0 ? index : this.element.rows.length + index]);
@@ -248,8 +332,28 @@ var Ω = (function () {
 				this.element.value = value;
 				return this;
 			};
+			this.clear = () => {
+				this.element.value = "";
+				return this;
+			};
 		}
 		if (this.element instanceof HTMLInputElement || this.element instanceof HTMLTextAreaElement || this.element instanceof HTMLSelectElement || this.element instanceof HTMLButtonElement) {
+			Object.defineProperty(this, "enabled", {
+				get () {
+					return !element.disabled;
+				},
+				set (value) {
+					element.disabled = !value;
+				}
+			});
+			Object.defineProperty(this, "disabled", {
+				get () {
+					return element.disabled;
+				},
+				set (value) {
+					element.disabled = value;
+				}
+			});
 			this.enable = () => {
 				this.element.disabled = false;
 				return this;
@@ -260,13 +364,35 @@ var Ω = (function () {
 			}
 		}
 		if (this.element instanceof HTMLInputElement || this.element instanceof HTMLTextAreaElement) {
-			this.onInput = callback => this.listenFor("input", event => callback(this.value));
+			this.onInput = callback => this.listenFor("input", event => callback(this.value, this));
 			this.onChange = callback => this.listenFor("change", event => callback());
 			this.focus = () => {
 				this.element.focus();
 				return this;
 			};
-			this.onBlur = callback => this.listenFor("blur", event => callback());
+			this.blur = () => {
+				this.element.blur();
+				return this;
+			};
+			Object.defineProperty(this, "hasFocus", {
+				get () {
+					return document.activeElement !== this.element;
+				}
+			});
+			this.onBlur = callback => this.listenFor("blur", event => {
+				if (document.activeElement !== this.element) {
+					callback(this);
+				}
+			});
+			Object.defineProperty(this, "selection", {
+				get () {
+					return {
+						start: this.element.selectionStart,
+						end: this.element.selectionEnd,
+						collapsed: this.element.selectionStart === this.element.selectionEnd
+					}
+				}
+			});
 			this.withSelection = this.setSelection = (start, end) => {
 				this.element.setSelectionRange(start, end);
 				return this;
@@ -282,16 +408,21 @@ var Ω = (function () {
 			};
 		};
 		if (this.element instanceof HTMLInputElement && ["checkbox", "radio"].indexOf(this.element.type) !== -1) {
-			this.checked = () => {
-				return this.element.checked;
-			};
+			Object.defineProperty(this, "checked", {
+				get () {
+					return this.element.checked;
+				},
+				set (value) {
+					this.element.checked = value;
+				}
+			});
 			this.setChecked = checked => {
 				this.element.checked = checked;
 				return this;
 			};
 			this.check = () => this.setChecked(true);
 			this.uncheck = () => this.setChecked(false);
-			this.onChange = callback => this.listenFor("change", event => callback(this.checked()));
+			this.onChange = callback => this.listenFor("change", event => callback(this.checked, this));
 			// Allow the user to use .value and .withValue to get and set the checked status of checkboxes, as well as listening for .onInput
 			this.value = this.checked;
 			this.withValue = this.setChecked;
@@ -302,7 +433,28 @@ var Ω = (function () {
 				options.forEach(option => this.append(Ω(`option`).withText(option)));
 				return this;
 			};
-			this.onSelect = callback => this.listenFor("change", event => callback(this.element.value));
+			this.onSelect = callback => this.listenFor("change", event => callback(this.element.value, this));
+		}
+		if (this.element instanceof HTMLCanvasElement) {
+			this.getContext = type => {
+				return this.element.getContext(type);
+			};
+			Object.defineProperty(this, "width", {
+				get () {
+					return this.element.width;
+				},
+				set (value) {
+					this.element.width = value;
+				}
+			});
+			Object.defineProperty(this, "height", {
+				get () {
+					return this.element.height;
+				},
+				set (value) {
+					this.element.height = value;
+				}
+			});
 		}
 	};
 
